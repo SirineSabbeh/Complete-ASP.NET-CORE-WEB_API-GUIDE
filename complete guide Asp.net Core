@@ -1,0 +1,472 @@
+1-go to the visual studio 2019 communty and create our Api core then open it tn the terminal (cmd)and tap the commands lines of git.
+1.1-git init 
+1.2-git add . 
+1.3-git commit -m "This is our first commit" 
+1.4-git branch -M main
+1.5-git remote add origin https://github.com/SirineSabbeh/Complete-Guide-AspNetCore-Web-Api.git
+1.6-git push -u origin main
+2-Explain the default files of our web api's.
+3-take an idea about the tools of testing like Swgger And Postman
+4-Create a models folder then Add a Book class into it .
+5- Adding Your Entity Framework Core DbContext File to Web API(Entity Framework DATABASE Context is the most important entity framwork class
+because this class serves as a bridge between the entity classes(C# class)and the database tables(sql).
+
+Tools -> Nuget package Manager -> console install-package microsoft.entityframeworkcore.sqlserver -version 5.0.2 
+6-Go to appSetting.json file then next add into it an attribute called  "ConnectionStrings".
+ "ConnectionStrings": {
+    "DefaultConnectionString": "fake-db-connection"
+  }
+  
+7-Going to  startup.cs file and just before the startup class we need to write a string property 
+ called connectionstring , by using this we can configure the database inside of it.
+ 7.1-assign a value to the connection string property within the startup class's contractor.
+  public string ConnectionString { get; set; }
+        public Startup(IConfiguration configuration)
+        {
+            Configuration = configuration;
+            ConnectionString = Configuration.GetConnectionString("DefaultConnectionString");
+        }
+ 7.2-configure DbContext with Sql.
+  //configure DBConext with SQL
+   services.AddDbContext<AppDBContext>(options => options.UseSqlServer(ConnectionString));
+   
+8-after we have created the book model and configured the Entity framwork(BDContext) with SQL ,
+it's the time to create the database and use the entity framwork core to create a book table so we can use EF Core Migration 
+(provides a way to incrementally update the database schema to keep in sync with the application's data model)
+  8.1 To work with it ,we need to install EF Core.tools package so for That let's go to visual studio and see it in action:
+      install-package Microsoft.EntityFrameworkCore.Tools -version 5.0.0
+  8.2 make a new data connection called MY_BOOKS
+  8.3 Add a migration called InitialDatabaseMigation :Add-Migration InitialDatabaseMigation 
+  8.4 To push the changes with the database we need to run :Update-Database
+9- Now that we have set up the appDbContext file and also configure that file with an sql server database,let's add some
+ test data to our database for that let's go to visual studio and see it in action.In here we are going to add a new file ,
+ so for that let's go to solution explorer and inside the data folder we are going to  add a new file called AppDBInitilizer.
+ public static void Seed(IApplicationBuilder applicationBuilder)
+        {
+            using (var serviceScope = applicationBuilder.ApplicationServices.CreateScope())
+            {
+                var context = serviceScope.ServiceProvider.GetService<AppDBContext>();
+
+                if (!context.Books.Any())
+                {
+                    context.Books.AddRange(new Book()
+                    {
+                        Title = "1st Book Title",
+                        Description = "1st Book Description",
+                        ISsRead = true,
+                        DateRead = DateTime.Now.AddDays(-10),
+                        Rate = 4,
+                        Genre = "Biography",
+                        CoverUrl = "https....",
+                        DateAdded = DateTime.Now
+                    },
+                    new Book()
+                    {
+                        Title = "2nd Book Title",
+                        Description = "2nd Book Description",
+                        ISsRead = false,
+                        Genre = "Biography",
+                        CoverUrl = "https....",
+                        DateAdded = DateTime.Now
+                    });
+
+                    context.SaveChanges();
+                }
+            }
+        }
+    }
+10-Adding the first .net core web api controller :the controller is used to handle the http requests 
+and then send back an http response.(docorator in api controller specify that it's an api controller or mvc .
+11-[HttpPost]Add a New Book
+  11.1- Add a service
+  11.2- Configure a service
+  11.3- Add API endpoint
+  11.4- Test
+Details:
+- Create a service folder and inside let's create a BooksService class's (C# class's).
+-Configure the service in the startup.cs file()   //Configure service services.AddTransient<BooksService>();
+-go to books controller file then add the HttpPost endpoint method into it.
+   private AppDBContext _context;
+        public BooksService(AppDBContext context )
+        {
+            _context = context;
+        }
+        public void AddBook(BookVM book)
+        {
+            var _book = new Book()
+            {
+                Title = book.Title,
+                Description = book.Description,
+                ISsRead = book.ISsRead,
+                DateRead = book.ISsRead ? book.DateRead.Value : null,
+                Rate = book.ISsRead ? book.Rate.Value : null,
+                Genre = book.Genre,
+                Author = book.Author,
+                CoverUrl = book.CoverUrl,
+                DateAdded = DateTime.Now
+
+
+            };
+            _context.Books.Add(_book);
+            _context.SaveChanges();
+        }
+    //
+	  private BooksService _booksService;
+        public BooksController(BooksService booksservice)
+        {
+            _booksService = booksservice;    
+        }
+
+        [HttpPost("Create-new-book")]
+        public IActionResult AddBook([FromBody]BookVM book)
+        {
+            _booksService.AddBook(book);
+            return Ok();
+        }
+12-[HttpGet("Get All Books")]
+        //service folder
+        public List<Book> GetAllBooks()
+        {
+            return _context.Books.ToList();
+        }
+		//Books contoller
+		   [HttpGet("Get-All-Books")]
+        public IActionResult GetAllBooks()
+        {
+            var books=_booksService.GetAllBooks();
+            return Ok(books);
+        }
+13-[HttpGet("Get Book By ID")]
+   //service folder
+   public Book GetBookById(int n)
+        {
+            Book book = _context.Books.FirstOrDefault(book => book.Id == n);
+            try
+            {
+                return book;
+            }catch(Exception ex)
+            {
+                throw new Exception("this Book does not exist");
+
+            }
+        }
+	//Books controller
+	 public IActionResult GetBookById(int id)
+        {
+            var book = _booksService.GetBookById(id);
+            return Ok(book);
+        }
+		
+14-[HttpPut("Update-book/{id}")]
+    //service folder
+	 public Book UpdateBook(int id,BookVM book)
+        {
+            var  _book = _context.Books.FirstOrDefault(book => book.Id == n);
+            if(book != null)
+            {
+                _book.Title = book.Title;
+                _book.Description = book.Description;
+                _book.ISsRead = book.ISsRead;
+                _book.DateRead = book.ISsRead ? book.DateRead.Value : null;
+                _book.Rate = book.ISsRead ? book.Rate.Value : null;
+                _book.Genre = book.Genre;
+                _book.Author = book.Author;
+                _book.CoverUrl = book.CoverUrl;
+                _book.DateAdded = DateTime.Now;
+                _context.SaveChanges();
+            }
+            return _book;
+         
+
+        }
+	// Book Controller
+	 [HttpPut("Update-Book/{id}")]
+        public IActionResult UpdateBook(int id,[FromBody]BookVM book)
+        {
+            var _book=_booksService.UpdateBook(id, book);
+            return Ok(_book);
+        }
+15-Delete a Book(Delete EndPoint )
+ //DeleteBook method from BookService file
+        public void DeleteBook(int id)
+        {
+            var _book = _context.Books.FirstOrDefault(book => book.Id == id);
+            if (_book != null)
+            {
+                _context.Books.Remove(_book);
+                _context.SaveChanges();
+            }
+
+        }
+ //[HttpDelete("Delete-Book/{id}")]:EndPoint
+       [HttpDelete("Delete-Book/{id}")]
+        public IActionResult DeleteBook(int id)
+        {
+            _booksService.DeleteBook(id);
+            return Ok();
+        }
+	
+//Working With Relationel Data:in An App we normally have multiple Tables which are related to each other ,uou'll leran how to work
+with relational data using EF Core.
+
+There Are three Types of relationshipes that can exist between two entites:
+1-the first one is:One To one
+2-the second one's :One To Many:
+3=third one's :Many To Many
+ 
+
+2-One To Many
+Example: A publisher can publish multiple Books but a book can be published by a single publisher,
+For that you'll create a publisher model and define the realtionship between the publisher model and book model
+the next we'll add migration and also update the database so let's go the visual studio and see it in action
+2.1 =>Create a publisher model file : 
+  public class Publisher
+    {
+        public int id { get; set; }
+        public string Name { get; set; }
+
+        //Navigation Properites
+        public List<Book> Books { get; set; }
+
+    }
+2.2 =>add the navigation properties into the book.cs file:
+   //Navigation Properties
+        public int PublisherID { get; set; }
+
+        public Publisher Publisher { get; set; }
+      
+2.3=>Add-Migration PublisherAdded Then Update-Database -verbose
+ 
+ 
+3-Many To Many between two entites
+3.1-first of all we re going to add an author model inside the models folder.
+    
+        public int Id { get; set; }
+        public string  AuthorFullName { get; set; }
+3.2-next let's add a join entity called book_author
+    public class Author_Book
+    {
+        public  int ID { get; set; }
+        public int IdBook { get; set; }
+        public Book  Book{ get; set; }
+
+        public int IdAuthor { get; set; }
+        public Author Author { get; set; }
+    }
+
+3.3-Add navigation properties
+    //properites navigation into book and author class's
+    //public List<Author_Book> Author_Book { get; set; }
+3.4-Add Migration
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Author_Book>()
+                .HasOne(b => b.Book)
+                .WithMany(ba => ba.Author_Book)
+                .HasForeignKey(b => b.IdBook);
+            modelBuilder.Entity<Author_Book>()
+                .HasOne(a => a.Author)
+                .WithMany(au => au.Author_Book)
+                .HasForeignKey(a => a.IdAuthor);
+        }
+        public DbSet<Book> Books { get; set;}
+        public DbSet<Author> Authors { get; set; }
+
+        public DbSet<Author_Book> Authors_Books { get; set; }
+
+        public DbSet<Publisher> Publishers { get; set; }
+		
+		 Add-Migration ManyToManyAdded
+3.5-Update Database
+Update-Database
+
+//Add publisher and author sevices to api
+steps:
+Publisher:
+1-Add publisher service
+2-Add PublisherVM
+3-Add PublisherController
+Author:
+1-Add publisher service
+2-Add PublisherVM
+3-Add PublisherController
+Configure services
+Test
+
+ //Adding Relational Data to DB with Entity Framework Core(Method post(Add-Book)
+ 1.Update BookVM
+ 2.update AddBook
+ 3.test
+
+1-
+public class BookVM
+    {
+        public string Title { get; set; }
+
+        public string Description { get; set; }
+        public bool ISsRead { get; set; }
+        public DateTime? DateRead { get; set; }
+
+        public int? Rate { get; set; }
+        public string Genre { get; set; }
+
+       
+        public string CoverUrl { get; set; }
+        public int PublisherID { get; set; }
+
+        public List<int> AuthorsIDS { get; set; }
+2-
+public void AddBookWithAuthors(BookVM book)
+        {
+            var _book = new Book()
+            {
+                Title = book.Title,
+                Description = book.Description,
+                ISsRead = book.ISsRead,
+                DateRead = book.ISsRead ? book.DateRead.Value : null,
+                Rate = book.ISsRead ? book.Rate.Value : null,
+                Genre = book.Genre,
+              
+                CoverUrl = book.CoverUrl,
+                DateAdded = DateTime.Now,
+                PublisherID=book.PublisherID
+
+
+            };
+            _context.Books.Add(_book);
+            _context.SaveChanges();
+            foreach (var id in book.AuthorsIDS)
+            {
+                var _book_author = new Author_Book()
+                {
+                    IdBook = _book.Id,
+                    IdAuthor = id
+                };
+                _context.Authors_Books.Add(_book_author);
+                _context.SaveChanges();
+
+            }
+        }
+3-Add-Migration bookWithoutAuthor
+ -Update-Database
+4-Test the post EndPoint 
+
+//GetBookById
+ class BookVMNames
+ public class BookVMNames
+    {
+        public string Title { get; set; }
+
+        public string Description { get; set; }
+        public bool ISsRead { get; set; }
+        public DateTime? DateRead { get; set; }
+
+        public int? Rate { get; set; }
+        public string Genre { get; set; }
+
+
+        public string CoverUrl { get; set; }
+        public string PublisherName { get; set; }
+
+        public List<string> AuthorsNames { get; set; }
+    }
+	change the service method
+	  //Get Book By ID
+        public BookVMNames GetBookById(int n)
+        {
+            var _book = _context.Books.Where(bookid => bookid.Id == n).Select( book => new BookVMNames()
+            {
+                Title = book.Title,
+                Description = book.Description,
+                ISsRead = book.ISsRead,
+                DateRead = book.ISsRead ? book.DateRead.Value : null,
+                Rate = book.ISsRead ? book.Rate.Value : null,
+                Genre = book.Genre,
+
+                CoverUrl = book.CoverUrl,
+                PublisherName = book.Publisher.Name,
+                AuthorsNames = book.Author_Book.Select(n => n.Author.FullName).ToList()
+
+
+            }).FirstOrDefault();
+
+            try
+            {
+                return _book;
+            }catch(Exception ex)
+            {
+                throw new Exception("this Book does not exist");
+
+            }
+        }
+		//change the api-endpoint into bookController
+///////
+get All Books of an author
+1-first of all let's add a new class's which  defines two  attributes  authorName and booksnames List
+    public class AuthorsVMBooks
+    {
+        public string FullName { get; set; }
+        public List<string> BooksNames { get; set; }
+    }
+2-add a new get method  inside the serviceAvuthor file.
+  public AuthorsVMBooks GetAuthorsBooks(int AuthId)
+        {
+            var _AuthBooksNames = _context.Authors.Where(n => n.Id == AuthId).Select(AuthorB => new AuthorsVMBooks()
+            {
+
+                FullName = AuthorB.FullName,
+                BooksNames = AuthorB.Author_Book.Select(n => n.Book.Title).ToList()
+
+
+
+            }).FirstOrDefault();
+            return _AuthBooksNames;
+        }
+
+3-Add e new and point into authorController then test it using the swagger tool.
+
+//Get BooksAuthors per publisher
+
+1-first of all let's add a new class's which  defines two  attributes  publisherName and List of AuthorBook
+     public class PublisherWithBooksAuthors
+    {
+        public string Name { get; set; }
+        public List<BookAuthorVM> BooksNamesWithAuthors { get; set; }
+    }
+    public class BookAuthorVM
+    {
+        public string BookName { get; set; }
+        public List<string> PBAuthors { get; set; }
+    }
+	
+	     public PublisherWithBooksAuthors GetPublisherWithBookAuthorsByID(int id)
+        {
+            var _pba = _context.Publishers.Where(n => n.Id == id).Select(n => new PublisherWithBooksAuthors()
+            {
+                Name = n.Name,
+                BooksNamesWithAuthors = n.MY_Books.Select(n => new BookAuthorVM()
+                {
+                    BookName = n.Title,
+                    PBAuthors = n.Author_Book.Select(n => n.Author.FullName).ToList()
+                }).ToList()
+            }).FirstOrDefault();
+            return _pba;
+        }
+////Delete a publisher(DeleteEndPoint)
+ //Delete Publisher
+        public void DeletePublisher(int id)
+        {
+            var _obj = _context.Publishers.FirstOrDefault(n => n.Id == id);
+            if (_obj != null)
+            {
+                _context.Publishers.Remove(_obj);
+                _context.SaveChanges();
+            }
+        }
+  //delete end point inti PublisherController
+  [HttpDelete("Delete-¨Publisher/{id}")]
+        public IActionResult DeletePublisher(int id)
+        {
+            _publisherService.DeletePublisher(id);
+            return Ok();
+        }
